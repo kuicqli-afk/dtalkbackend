@@ -1,0 +1,87 @@
+[
+  {
+    "intent": "greeting",
+    "patterns": ["hi", "hello", "hey", "namaste", "good morning"],
+    "responses": [
+      "Namaste! 👋 Welcome to StoreBot. How can I help you?",
+      "Hello! 😊 What can I do for you today?",
+      "Hey there! 👋 Ask me about orders, products, or anything!"
+    ]
+  },
+  {
+    "intent": "order_status",
+    "patterns": ["order status", "track order", "my order", "order", "status"],
+    "responses": [
+      "📦 Share your Order ID (e.g., #ORD123456)",
+      "🔍 Please type #ORD followed by your order number"
+    ]
+  },
+  {
+    "intent": "barcode_scan",
+    "patterns": ["barcode", "scan", "bar code"],
+    "responses": [
+      "📸 Type #BAR followed by barcode number",
+      "🔍 Share barcode to find product details"
+    ]
+  },
+  {
+    "intent": "return_policy",
+    "patterns": ["return", "refund", "exchange"],
+    "responses": [
+      "🔄 7-day easy returns. Visit My Orders → Return",
+      "📦 Returns accepted within 7 days of delivery"
+    ]
+  },
+  {
+    "intent": "contact_support",
+    "patterns": ["contact", "support", "help", "agent"],
+    "responses": [
+      "📞 Call: +91-9876543210 (9 AM - 9 PM)",
+      "📧 Email: support@store.com",
+      "💬 We're here 24/7 to help!"
+    ]
+  },
+  {
+    "intent": "offers",
+    "patterns": ["offers", "discount", "coupon", "sale"],
+    "responses": [
+      "🎉 Use SAVE10 for 10% off!",
+      "🏷️ ELEC20 = 20% off on electronics",
+      "🔥 Flash sale: Up to 50% off!"
+    ]
+  },
+  {
+    "intent": "payment",
+    "patterns": ["payment", "pay", "upi", "cod", "card"],
+    "responses": [
+      "💳 Cards, UPI (GPay/PhonePe), COD available",
+      "💸 Pay via: Cards, UPI, Net Banking, COD"
+    ]
+  },
+  {
+    "intent": "delivery",
+    "patterns": ["delivery", "shipping", "when", "arrive"],
+    "responses": [
+      "🚚 Standard: 3-5 days, Express: 2 days",
+      "⏳ Usually delivered in 3-5 business days"
+    ]
+  },
+  {
+    "intent": "thanks",
+    "patterns": ["thanks", "thank you", "thankyou", "thnx"],
+    "responses": [
+      "You're welcome! 😊 Happy to help!",
+      "Anytime! 🎉 Have a great day!",
+      "My pleasure! 💙 Need anything else?"
+    ]
+  },
+  {
+    "intent": "goodbye",
+    "patterns": ["bye", "goodbye", "see you", "later", "tata"],
+    "responses": [
+      "Goodbye! 👋 Visit again!",
+      "See you later! 🌟 Take care!",
+      "Bye bye! 🚀 Have a great day!"
+    ]
+  }
+]
