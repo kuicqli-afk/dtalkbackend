@@ -43,6 +43,8 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://localhost:5173',
   'http://localhost:5000',
+  'https://admin.shyamnamkeenandbakers.online',
+  'https://dtalkbusiness.designerbrids.com',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
