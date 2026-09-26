@@ -41,7 +41,7 @@ exports.sendOTP = async (req, res) => {
             if (!validUser) {
                 return res.status(403).json({
                     success: false,
-                    error: "Access Denied: This phone number is not registered in the main ShyamFood system."
+                    error: "Access Denied: This phone number is not registered"
                 });
             }
 
