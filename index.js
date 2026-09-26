@@ -1,4 +1,4 @@
-// backend/server.js
+// backend/index.js
 
 require('dotenv').config();
 
@@ -34,15 +34,23 @@ const app = express();
 const server = http.createServer(app);
 
 // ============================================
-// INITIALIZE GEMINI AI
+// GEMINI AI
 // ============================================
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY
-});
+let ai = null;
+
+if (process.env.GEMINI_API_KEY) {
+  ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY
+  });
+
+  console.log('✅ Gemini API configured');
+} else {
+  console.log('⚠️ GEMINI_API_KEY is not configured');
+}
 
 // ============================================
-// ALLOWED ORIGINS
+// ALLOWED CORS ORIGINS
 // ============================================
 
 const allowedOrigins = [
@@ -57,10 +65,12 @@ const allowedOrigins = [
   process.env.FRONTEND_URL
 ]
   .filter(Boolean)
-  .map(origin => origin.replace(/\/$/, ''));
+  .map((origin) => origin.replace(/\/$/, ''));
 
+console.log('============================================');
 console.log('✅ Allowed CORS Origins:');
 console.log(allowedOrigins);
+console.log('============================================');
 
 // ============================================
 // SOCKET.IO
@@ -69,7 +79,7 @@ console.log(allowedOrigins);
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true
   }
 });
@@ -84,8 +94,8 @@ app.use(
   cors({
     origin: (origin, callback) => {
 
-      // Allow requests without Origin
-      // Example: Postman, curl, server-to-server
+      // Requests without Origin
+      // Example: curl, Postman, server-to-server
       if (!origin) {
         return callback(null, true);
       }
@@ -97,50 +107,6 @@ app.use(
       }
 
       console.log('❌ CORS blocked:', origin);
-
-      return callback(
-        new Error(`CORS blocked for origin: ${origin}`)
-      );
-    },
-
-    methods: [
-      'GET',
-      'POST',
-      'PUT',
-      'PATCH',
-      'DELETE',
-      'OPTIONS'
-    ],
-
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization'
-    ],
-
-    credentials: true
-  })
-);
-
-// ============================================
-// HANDLE PREFLIGHT REQUESTS
-// ============================================
-
-app.options(
-  '*',
-  cors({
-    origin: (origin, callback) => {
-
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      const cleanOrigin = origin.replace(/\/$/, '');
-
-      if (allowedOrigins.includes(cleanOrigin)) {
-        return callback(null, true);
-      }
-
-      console.log('❌ CORS preflight blocked:', origin);
 
       return callback(
         new Error(`CORS blocked for origin: ${origin}`)
@@ -178,7 +144,7 @@ app.use(express.json());
 app.use('/api/status', statusRoute);
 
 // ============================================
-// CREATE UPLOADS FOLDER
+// UPLOADS FOLDER
 // ============================================
 
 const uploadsPath = path.join(__dirname, 'uploads');
@@ -192,7 +158,7 @@ if (!fs.existsSync(uploadsPath)) {
 }
 
 // ============================================
-// STATIC FILES
+// STATIC UPLOADS
 // ============================================
 
 app.use(
@@ -210,22 +176,16 @@ connectDB();
 // ROUTES
 // ============================================
 
-// Authentication
 app.use('/api/auth', authRoute);
 
-// Admin / Store authentication
 app.use('/api/admin/auth', storeRoute);
 
-// Messages
 app.use('/api/messages', messageRoute);
 
-// Media
 app.use('/api/media', mediaRoute);
 
-// Broadcast
 app.use('/api/broadcast', broadcastRoute);
 
-// Users
 app.use('/api/users', require('./routes/authRoute'));
 
 // ============================================
@@ -250,10 +210,14 @@ app.get('/', (req, res) => {
 });
 
 // ============================================
-// SOCKET.IO EVENTS
+// ACTIVE SESSIONS
 // ============================================
 
 const activeSessions = new Map();
+
+// ============================================
+// SOCKET.IO CONNECTION
+// ============================================
 
 io.on('connection', (socket) => {
 
@@ -283,12 +247,12 @@ io.on('connection', (socket) => {
 
     try {
 
-      // Database status update logic if needed
+      // Database status update logic if required
 
     } catch (error) {
 
       console.error(
-        'Error updating offline status on register:',
+        'Error updating online status:',
         error
       );
 
@@ -296,10 +260,14 @@ io.on('connection', (socket) => {
   });
 
   // ============================================
-  // JOIN CHAT ROOM
+  // JOIN ROOM
   // ============================================
 
   socket.on('join_room', (sessionId) => {
+
+    if (!sessionId) {
+      return;
+    }
 
     socket.join(sessionId);
 
@@ -329,7 +297,7 @@ io.on('connection', (socket) => {
       senderId,
       recipientId,
       receiverId
-    } = data;
+    } = data || {};
 
     const messageText = text || message;
 
@@ -355,7 +323,7 @@ io.on('connection', (socket) => {
     }, 1500);
 
     // ============================================
-    // FINAL USER IDs
+    // FINAL IDS
     // ============================================
 
     const finalSenderId =
@@ -397,7 +365,7 @@ io.on('connection', (socket) => {
       );
 
       // ============================================
-      // GEMINI AI RESPONSE
+      // AI RESPONSE
       // ============================================
 
       if (sender === 'user') {
@@ -411,6 +379,70 @@ io.on('connection', (socket) => {
         if (cleanText.length === 0) {
           return;
         }
+
+        // ============================================
+        // GEMINI NOT CONFIGURED
+        // ============================================
+
+        if (!ai) {
+
+          console.log(
+            '⚠️ Gemini API unavailable - using fallback response'
+          );
+
+          const isHindi =
+            messageText
+              .toLowerCase()
+              .match(
+                /hi|hello|hey|kaise|kya|bhai|salam/
+              );
+
+          const fallbackReply =
+            isHindi
+              ? 'Hello! Dtalk support mein aapka swagat hai. Aaj hum aapki kya madad kar sakte hain?'
+              : 'Hello! Welcome to Dtalk support. How can we help you today?';
+
+          const savedFallbackMessage =
+            await Message.create({
+
+              sessionId: sessionId,
+
+              senderId:
+                finalReceiverId,
+
+              receiverId:
+                finalSenderId,
+
+              text: fallbackReply,
+
+              messageType: 'text'
+
+            });
+
+          const botReplyObj = {
+
+            id: savedFallbackMessage._id,
+
+            text: savedFallbackMessage.text,
+
+            sender: 'ai',
+
+            timestamp:
+              savedFallbackMessage.createdAt
+
+          };
+
+          io.to(sessionId).emit(
+            'receive_message',
+            botReplyObj
+          );
+
+          return;
+        }
+
+        // ============================================
+        // GEMINI REQUEST
+        // ============================================
 
         try {
 
@@ -603,7 +635,15 @@ Customer message:
 
     const {
       sessionId
-    } = data;
+    } = data || {};
+
+    if (!sessionId) {
+      socket.emit('scan-error', {
+        message: 'Session ID required'
+      });
+
+      return;
+    }
 
     if (activeSessions.has(sessionId)) {
 
@@ -652,7 +692,7 @@ Customer message:
 
     const {
       receiverId
-    } = data;
+    } = data || {};
 
     const receiverSocketId =
       activeSessions.get(receiverId);
@@ -681,7 +721,7 @@ Customer message:
       callType,
       callerName,
       roomId
-    }) => {
+    } = {}) => {
 
       const recipientSocketId =
         activeSessions.get(recipientId);
@@ -713,7 +753,9 @@ Customer message:
 
   socket.on(
     'end-call',
-    ({ recipientId }) => {
+    ({
+      recipientId
+    } = {}) => {
 
       const recipientSocketId =
         activeSessions.get(recipientId);
