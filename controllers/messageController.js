@@ -1,4 +1,4 @@
-const Conversation = require('../models/Conversation');
+const Conversation = require('../models/message');
 const { GoogleGenAI } = require('@google/genai');
 
 const ai = new GoogleGenAI({
@@ -212,22 +212,22 @@ exports.getConversations = async (req, res) => {
 // ==========================================
 exports.adminReply = async (req, res) => {
   try {
-    const { sessionId, text, adminId, replyTo, mediaUrl, url,image, type } = req.body;
-    
+    const { sessionId, text, adminId, replyTo, mediaUrl, url, image, type } = req.body;
+
     let conversation = await Conversation.findOne({ sessionId });
     if (!conversation) return res.status(404).json({ success: false, error: 'Not found' });
 
     const cleanText = text?.trim() || '';
     const finalMedia = mediaUrl || url || image || '';
 
-console.log("📸 ADMIN REPLY:", {
-  text,
-  mediaUrl,
-  url,
-  image,
-  finalMedia,
-  type
-});
+    console.log("📸 ADMIN REPLY:", {
+      text,
+      mediaUrl,
+      url,
+      image,
+      finalMedia,
+      type
+    });
 
     if (!cleanText && !finalMedia) {
       return res.status(400).json({ success: false, error: 'Message or media is required' });
@@ -237,8 +237,8 @@ console.log("📸 ADMIN REPLY:", {
       senderId: adminId || 'admin',
       senderType: 'admin',
       text: cleanText,
-      type: finalMedia ? 'image' : (type || 'text'), 
-      mediaUrl: finalMedia,                          
+      type: finalMedia ? 'image' : (type || 'text'),
+      mediaUrl: finalMedia,
       delivered: true,
       read: false,
       replyTo: replyTo || null,
@@ -268,4 +268,75 @@ exports.clearChat = async (req, res) => {
 exports.deleteSession = async (req, res) => {
   await Conversation.findOneAndDelete({ sessionId: req.params.sessionId });
   res.json({ success: true, message: 'Deleted' });
+};// ==========================================
+// 4. DELETE A SINGLE MESSAGE
+// ==========================================
+exports.deleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log("🗑️ Delete message request:", id);
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Message ID is required",
+      });
+    }
+
+    // Find the conversation containing this embedded message
+    const conversation = await Conversation.findOne({
+      "messages._id": id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: "Message not found",
+      });
+    }
+
+    const message = conversation.messages.id(id);
+
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Message not found in conversation",
+      });
+    }
+
+    const sessionId = conversation.sessionId;
+
+    // Remove embedded message
+    message.deleteOne();
+
+    await conversation.save();
+
+    console.log("✅ Message deleted:", id);
+
+    // Notify other connected clients
+    const io = req.app.get("io");
+
+    if (io && sessionId) {
+      io.to(sessionId).emit("message-deleted", {
+        messageId: id,
+        sessionId,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Message deleted successfully",
+      messageId: id,
+      sessionId,
+    });
+  } catch (error) {
+    console.error("❌ Delete message error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete message",
+      error: error.message,
+    });
+  }
 };

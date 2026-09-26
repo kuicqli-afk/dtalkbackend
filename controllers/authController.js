@@ -1,7 +1,7 @@
 const axios = require("axios");
 const mongoose = require('mongoose');
 const User = require('../models/User');
-const Conversation = require('../models/Conversation');
+const Conversation = require('../models/message');
 const jwt = require("jsonwebtoken");
 const shyamFoodApi = require('../services/shyamFoodApi');
 const MUZZTECH_API_KEY = process.env.MUZZTECH_API_KEY || "9344cb98b24718f608f5241beaea8a81";
@@ -32,36 +32,36 @@ exports.sendOTP = async (req, res) => {
         try {
             const shyamCheck = await shyamFoodApi.get("/api/user/all-users");
             const usersList = shyamCheck.data.users || shyamCheck.data.contacts || shyamCheck.data || [];
-            
+
             const validUser = usersList.find(u => {
                 const userPhone = String(u.phone || u.mobile || "").replace(/\D/g, "").slice(-10);
                 return userPhone === cleanPhone;
             });
 
             if (!validUser) {
-                return res.status(403).json({ 
-                    success: false, 
-                    error: "Access Denied: This phone number is not registered in the main ShyamFood system." 
+                return res.status(403).json({
+                    success: false,
+                    error: "Access Denied: This phone number is not registered in the main ShyamFood system."
                 });
             }
 
             if (validUser.name || validUser.fullName || validUser.username || validUser.ownerName || validUser.shopName) {
                 shyamUserName = validUser.name || validUser.fullName || validUser.username || validUser.ownerName || validUser.shopName;
             }
-            
+
             if (validUser.role) {
                 shyamRole = validUser.role;
             }
         } catch (shyamError) {
             console.error("ShyamFood Verification Error:", shyamError.response?.data || shyamError.message);
-            return res.status(403).json({ 
-                success: false, 
-                error: "Unauthorized: Failed to verify phone number with ShyamFood database." 
+            return res.status(403).json({
+                success: false,
+                error: "Unauthorized: Failed to verify phone number with ShyamFood database."
             });
         }
 
         let user = await User.findOne({ phone: cleanPhone });
-        
+
         if (!user) {
             user = await User.create({
                 name: (name && name.trim() !== "") ? name.trim() : shyamUserName,
@@ -142,7 +142,7 @@ exports.verifyOTP = async (req, res) => {
         if (!user) {
             user = await User.create({
                 phone: cleanPhone,
-                name: "", 
+                name: "",
                 username: "",
                 role: "customer"
             });
@@ -154,11 +154,11 @@ exports.verifyOTP = async (req, res) => {
         }
 
         const token = jwt.sign(
-            { 
-                id: user._id.toString(), 
-                userId: user._id.toString(), 
+            {
+                id: user._id.toString(),
+                userId: user._id.toString(),
                 phone: user.phone,
-                role: user.role || "customer" 
+                role: user.role || "customer"
             },
             secret,
             { expiresIn: "7d" }
@@ -204,7 +204,7 @@ exports.getMe = async (req, res) => {
                 bio: user.bio,
                 profileImage: user.avatar,
                 avatar: user.avatar,
-                role: user.role || "customer"   
+                role: user.role || "customer"
             }
         });
     } catch (error) {
@@ -429,7 +429,7 @@ exports.profile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const userId = req.userId || req.user?.id || req.body.userId;
-        
+
         if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ success: false, error: "Valid User ID is missing" });
         }
@@ -442,7 +442,7 @@ exports.updateProfile = async (req, res) => {
             updateData.bio = bio.trim();
             updateData.status = bio.trim();
         }
-        
+
         if (req.file) {
             updateData.avatar = `/uploads/${req.file.filename}`;
         }
@@ -526,14 +526,14 @@ exports.getAllUsers = async (req, res) => {
 exports.getShopkeeper = async (req, res) => {
     try {
         // Yahan hum strictly database mein se us user ko dhoond rahe hain jiska role admin, shopkeeper ya store hai
-        const shopkeeper = await User.findOne({ 
-            role: { $regex: /^(admin|shopkeeper|store)$/i } 
+        const shopkeeper = await User.findOne({
+            role: { $regex: /^(admin|shopkeeper|store)$/i }
         }).select('-password -otp');
 
         if (!shopkeeper) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "Database mein koi shopkeeper ya admin registered nahi hai." 
+            return res.status(404).json({
+                success: false,
+                message: "Database mein koi shopkeeper ya admin registered nahi hai."
             });
         }
 
@@ -573,10 +573,10 @@ exports.getAllCustomers = async (req, res) => {
             role: user.role
         }));
 
-        return res.status(200).json({ 
-            success: true, 
+        return res.status(200).json({
+            success: true,
             users: formattedCustomers,
-            contacts: formattedCustomers 
+            contacts: formattedCustomers
         });
     } catch (error) {
         res.status(500).json({ success: false, message: "Failed to fetch customers", error: error.message });
@@ -590,7 +590,7 @@ exports.getAdmin = async (req, res) => {
     try {
         let userId = req.userId || req.user?.id || req.user?._id;
         let decodedTokenData = null;
-        
+
         if (req.headers.authorization) {
             try {
                 const parts = req.headers.authorization.split(' ');
@@ -626,7 +626,7 @@ exports.getAdmin = async (req, res) => {
         }
 
         let currentUser = await User.findById(userId).select('-otp');
-        
+
         if (!currentUser) {
             currentUser = await User.create({
                 phone: decodedTokenData?.phone || "9999999999",
@@ -643,7 +643,7 @@ exports.getAdmin = async (req, res) => {
     } catch (error) {
         console.error("Get Admin Error:", error.message);
         return res.status(500).json({ success: false, error: error.message });
-    }   
+    }
 };// ==========================================
 // FULLY DYNAMIC STORE INFO CONTROLLER
 // ==========================================
@@ -651,7 +651,7 @@ exports.getStoreInfo = async (req, res) => {
     try {
         const response = await shyamFoodApi.get("/api/admin/auth/store-info");
 
-        return res.status(200).json({   
+        return res.status(200).json({
             success: true,
             store: response.data?.store || response.data?.user || response.data,
         });

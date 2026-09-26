@@ -11,7 +11,9 @@ const {
   getConversations,
   adminReply,
   clearChat,
-  deleteSession
+  deleteSession,
+  addReaction,
+  deleteMessage   // 👈 naya import
 } = require('../controllers/messageController');
 
 // ============================================
@@ -26,8 +28,8 @@ const storage = new CloudinaryStorage({
   },
 });
 
-const upload = multer({ 
-  storage: storage, 
+const upload = multer({
+  storage: storage,
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB limit 
 });
 
@@ -41,7 +43,7 @@ router.post('/admin-reply', adminReply);
 router.get('/history/:sessionId', getMessages);
 router.delete('/clear/:sessionId', clearChat);
 router.delete('/session/:sessionId', deleteSession);
-
+router.delete('/message/:id', deleteMessage);
 // ============================================
 // MEDIA UPLOAD ENDPOINT
 // ============================================
@@ -53,9 +55,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const fileUrl = req.file.path || req.file.secure_url;
     return res.status(200).json({
       success: true,
-      file: { 
-        url: fileUrl, 
-        mimetype: req.file.mimetype 
+      file: {
+        url: fileUrl,
+        mimetype: req.file.mimetype
       }
     });
   } catch (error) {

@@ -14,7 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const { GoogleGenAI } = require('@google/genai');
 const Customer = require('./models/customer');
-
+const Message = require('./models/message');
 
 const statusRoute = require('./routes/statusRoute');
 const connectDB = require('./config/db');
@@ -29,6 +29,7 @@ const mediaRoute = require('./routes/mediaRoute');
 
 const broadcastRoute = require('./routes/broadcastRoute');
 const storeRoute = require("./routes/storeRoute");
+
 const app = express();
 const server = http.createServer(app);
 
@@ -43,9 +44,8 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://localhost:5173',
   'http://localhost:5000',
-  'https://admin.shyamnamkeenandbakers.online',
-  'https://dtalkbusiness.designerbrids.com',
-  'https://dtalkbackend.designerbrids.com',
+  'https://backend.shyamnamkeenandbakers.online/',
+  'https://dtalkbusiness.designerbirds.com/',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
