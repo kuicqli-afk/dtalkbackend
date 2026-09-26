@@ -12,9 +12,7 @@ const needsHuman = (message) => {
   return humanKeywords.some((keyword) => text.includes(keyword));
 };
 
-// ==========================================
-// 1. SEND MESSAGE (Supports Reply & Ticks)
-// ==========================================
+// 1. SEND MESSAGE
 exports.sendMessage = async (req, res) => {
   try {
     const { message, sessionId, userId = 'anonymous', recipientId = null, mediaUrl, type = 'text', replyTo, socketId } = req.body;
@@ -138,9 +136,7 @@ exports.sendMessage = async (req, res) => {
   }
 };
 
-// ==========================================
-// 2. GET MESSAGES & MARK AS READ (Double Blue Ticks)
-// ==========================================
+// 2. GET MESSAGES
 exports.getMessages = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -148,7 +144,6 @@ exports.getMessages = async (req, res) => {
 
     if (!conversation) return res.json({ success: true, messages: [] });
 
-    // Mark all as read (WhatsApp double blue tick trigger when chat opens)
     conversation.messages.forEach(msg => {
       msg.read = true;
       msg.delivered = true;
@@ -158,7 +153,7 @@ exports.getMessages = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.to(sessionId).emit('messages_read', { sessionId }); // Frontend ko notify karne ke liye
+      io.to(sessionId).emit('messages_read', { sessionId });
     }
 
     res.json({ success: true, sessionId: conversation.sessionId, status: conversation.status, messages: conversation.messages });
@@ -167,9 +162,7 @@ exports.getMessages = async (req, res) => {
   }
 };
 
-// ==========================================
-// 3. ADD EMOJI REACTION TO A MESSAGE
-// ==========================================
+// 3. ADD EMOJI REACTION
 exports.addReaction = async (req, res) => {
   try {
     const { sessionId, messageId, emoji, userId } = req.body;
@@ -180,7 +173,6 @@ exports.addReaction = async (req, res) => {
     const message = conversation.messages.id(messageId);
     if (!message) return res.status(404).json({ success: false, error: 'Message not found' });
 
-    // Check if user already reacted, update it or push new reaction
     const existingReactionIndex = message.reactions.findIndex(r => r.userId === userId);
     if (existingReactionIndex > -1) {
       message.reactions[existingReactionIndex].emoji = emoji;
@@ -201,15 +193,17 @@ exports.addReaction = async (req, res) => {
   }
 };
 
-// Other standard controllers like adminReply, clearConversations remain the same...
+// 4. GET CONVERSATIONS
 exports.getConversations = async (req, res) => {
-  const list = await Conversation.find().sort({ updatedAt: -1 });
-  res.json({ success: true, conversations: list });
+  try {
+    const list = await Conversation.find().sort({ updatedAt: -1 });
+    res.json({ success: true, conversations: list });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 };
 
-// ==========================================
-// Updated adminReply (Supports Media/Images)
-// ==========================================
+// 5. ADMIN REPLY
 exports.adminReply = async (req, res) => {
   try {
     const { sessionId, text, adminId, replyTo, mediaUrl, url, image, type } = req.body;
@@ -219,15 +213,6 @@ exports.adminReply = async (req, res) => {
 
     const cleanText = text?.trim() || '';
     const finalMedia = mediaUrl || url || image || '';
-
-    console.log("📸 ADMIN REPLY:", {
-      text,
-      mediaUrl,
-      url,
-      image,
-      finalMedia,
-      type
-    });
 
     if (!cleanText && !finalMedia) {
       return res.status(400).json({ success: false, error: 'Message or media is required' });
@@ -260,83 +245,58 @@ exports.adminReply = async (req, res) => {
   }
 };
 
+// 6. CLEAR CHAT
 exports.clearChat = async (req, res) => {
-  await Conversation.findOneAndUpdate({ sessionId: req.params.sessionId }, { $set: { messages: [] } });
-  res.json({ success: true, message: 'Cleared' });
+  try {
+    await Conversation.findOneAndUpdate({ sessionId: req.params.sessionId }, { $set: { messages: [] } });
+    res.json({ success: true, message: 'Cleared' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 };
 
+// 7. DELETE SESSION
 exports.deleteSession = async (req, res) => {
-  await Conversation.findOneAndDelete({ sessionId: req.params.sessionId });
-  res.json({ success: true, message: 'Deleted' });
-};// ==========================================
-// 4. DELETE A SINGLE MESSAGE
-// ==========================================
+  try {
+    await Conversation.findOneAndDelete({ sessionId: req.params.sessionId });
+    res.json({ success: true, message: 'Deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// 8. DELETE A SINGLE MESSAGE
 exports.deleteMessage = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log("🗑️ Delete message request:", id);
-
     if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "Message ID is required",
-      });
+      return res.status(400).json({ success: false, message: "Message ID is required" });
     }
 
-    // Find the conversation containing this embedded message
-    const conversation = await Conversation.findOne({
-      "messages._id": id,
-    });
+    const conversation = await Conversation.findOne({ "messages._id": id });
 
     if (!conversation) {
-      return res.status(404).json({
-        success: false,
-        message: "Message not found",
-      });
+      return res.status(404).json({ success: false, message: "Message not found" });
     }
 
     const message = conversation.messages.id(id);
 
     if (!message) {
-      return res.status(404).json({
-        success: false,
-        message: "Message not found in conversation",
-      });
+      return res.status(404).json({ success: false, message: "Message not found in conversation" });
     }
 
     const sessionId = conversation.sessionId;
-
-    // Remove embedded message
     message.deleteOne();
-
     await conversation.save();
 
-    console.log("✅ Message deleted:", id);
-
-    // Notify other connected clients
     const io = req.app.get("io");
-
     if (io && sessionId) {
-      io.to(sessionId).emit("message-deleted", {
-        messageId: id,
-        sessionId,
-      });
+      io.to(sessionId).emit("message-deleted", { messageId: id, sessionId });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: "Message deleted successfully",
-      messageId: id,
-      sessionId,
-    });
+    return res.status(200).json({ success: true, message: "Message deleted successfully", messageId: id, sessionId });
   } catch (error) {
-    console.error("❌ Delete message error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete message",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: "Failed to delete message", error: error.message });
   }
 };
