@@ -41,7 +41,7 @@ exports.sendOTP = async (req, res) => {
             if (!validUser) {
                 return res.status(403).json({
                     success: false,
-                    error: "Access Denied: This phone number is not registered"
+                    error: "Access Denied: This phone number is not registered with us"
                 });
             }
 
